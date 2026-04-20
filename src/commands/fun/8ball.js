@@ -1,0 +1,3 @@
+const { SlashCommandBuilder } = require('discord.js');
+const replies = ['Yes.', 'No.', 'Maybe.', 'Definitely.', 'Ask again later.', 'Very likely.', 'Not looking good.'];
+module.exports = { data: new SlashCommandBuilder().setName('8ball').setDescription('Ask the magic 8-ball a question.').addStringOption(o => o.setName('question').setDescription('Your question').setRequired(true)), async execute(interaction) { const q = interaction.options.getString('question'); const a = replies[Math.floor(Math.random() * replies.length)]; await interaction.reply(`🎱 **Question:** ${q}\n**Answer:** ${a}`); } };

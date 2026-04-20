@@ -1,0 +1,3 @@
+const { SlashCommandBuilder } = require('discord.js');
+const { getBalanceLeaderboard } = require('../../utils/database');
+module.exports = { data: new SlashCommandBuilder().setName('richest').setDescription('Show the richest users.'), async execute(interaction) { const rows = getBalanceLeaderboard(interaction.guild.id, 10); if (!rows.length) return interaction.reply('No economy data yet.'); const lines = await Promise.all(rows.map(async (row, i) => { const user = await interaction.client.users.fetch(row.user_id).catch(() => null); return `**${i + 1}.** ${user ? user.username : row.user_id} — ${row.balance} coins`; })); await interaction.reply(`💎 **Richest Users**\n${lines.join('\n')}`); } };

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Discord Bot Dashboard Starter</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Discord Bot Dashboard Starter</h1>
+      <p>This starter shows bot stats and per-server saved config. You can add login, OAuth, real guild editing, tickets pages, moderation logs, and economy pages later.</p>
+      <div class="stats" id="stats">
+        <div class="stat">Loading bot info...</div>
+      </div>
+      <h2>Guild Config Preview</h2>
+      <div id="guilds" class="guilds"></div>
+    </div>
+  </div>
+  <script>
+    async function loadStats() {
+      const res = await fetch('/api/stats');
+      const data = await res.json();
+      document.getElementById('stats').innerHTML = `
+        <div class="stat"><strong>Bot:</strong> ${data.botTag}</div>
+        <div class="stat"><strong>Servers:</strong> ${data.guilds}</div>
+        <div class="stat"><strong>Users:</strong> ${data.users}</div>
+        <div class="stat"><strong>Ping:</strong> ${data.ping}ms</div>
+        <div class="stat"><strong>Tracked users:</strong> ${data.trackedUsers}</div>
+        <div class="stat"><strong>Temp VCs:</strong> ${data.tempChannels}</div>
+      `;
+    }
+
+    async function loadGuilds() {
+      const res = await fetch('/api/guilds');
+      const guilds = await res.json();
+      document.getElementById('guilds').innerHTML = guilds.map(guild => `
+        <div class="guild-card">
+          <h3>${guild.name}</h3>
+          <p>Members: ${guild.memberCount}</p>
+          <pre>${JSON.stringify(guild.settings, null, 2)}</pre>
+        </div>
+      `).join('');
+    }
+
+    loadStats();
+    loadGuilds();
+  </script>
+</body>
+</html>

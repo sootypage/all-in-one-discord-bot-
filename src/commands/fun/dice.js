@@ -1,0 +1,2 @@
+const { SlashCommandBuilder } = require('discord.js');
+module.exports = { data: new SlashCommandBuilder().setName('dice').setDescription('Roll a dice.').addIntegerOption(o => o.setName('sides').setDescription('Dice sides').setMinValue(2).setMaxValue(100).setRequired(false)), async execute(interaction) { const sides = interaction.options.getInteger('sides') || 6; const roll = Math.floor(Math.random() * sides) + 1; await interaction.reply(`🎲 You rolled **${roll}** on a **d${sides}**.`); } };

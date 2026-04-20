@@ -1,0 +1,3 @@
+const { SlashCommandBuilder } = require('discord.js');
+const { getLeaderboard } = require('../../utils/database');
+module.exports = { data: new SlashCommandBuilder().setName('leaderboard').setDescription('Show the level leaderboard.'), async execute(interaction) { const rows = getLeaderboard(interaction.guild.id, 10); if (!rows.length) return interaction.reply('No leaderboard data yet.'); const lines = await Promise.all(rows.map(async (row, index) => { const user = await interaction.client.users.fetch(row.user_id).catch(() => null); const name = user ? user.username : `Unknown (${row.user_id})`; return `**${index + 1}.** ${name} — Level ${row.level} (${row.xp} XP)`; })); await interaction.reply(`🏆 **Leaderboard**\n${lines.join('\n')}`); } };
