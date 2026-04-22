@@ -9,19 +9,37 @@ module.exports = {
   async execute(interaction) {
     const queue = getQueue(interaction.guild.id);
 
-    if (!queue.songs.length) {
-      return interaction.reply({ content: 'The queue is empty.', ephemeral: true });
+    if (!queue.songs.length && !queue.current) {
+      return interaction.reply({
+        content: 'The queue is empty.',
+        ephemeral: true
+      });
+    }
+
+    const lines = [];
+
+    if (queue.current) {
+      lines.push(`**Now Playing:**\n🎶 **${queue.current.title}** \`[${queue.current.duration || 'Unknown'}]\``);
+    }
+
+    const upcoming = queue.songs.slice(queue.current ? 1 : 0, (queue.current ? 1 : 0) + 10);
+
+    if (upcoming.length) {
+      lines.push(
+        '**Up Next:**\n' +
+        upcoming
+          .map((song, index) => `${index + 1}. **${song.title}** \`[${song.duration || 'Unknown'}]\``)
+          .join('\n')
+      );
     }
 
     const embed = new EmbedBuilder()
       .setTitle('Music Queue')
-      .setDescription(
-        queue.songs
-          .slice(0, 10)
-          .map((song, index) => `${index === 0 ? '🎶' : `${index}.`} **${song.title}**`)
-          .join('\n')
-      )
-      .setColor(0x5865f2);
+      .setColor(0x5865f2)
+      .setDescription(lines.join('\n\n'))
+      .setFooter({
+        text: `Total queued: ${queue.songs.length}`
+      });
 
     await interaction.reply({ embeds: [embed] });
   }

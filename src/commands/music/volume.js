@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { setVolume } = require('../../utils/musicManager');
+const { setVolume, getQueue } = require('../../utils/musicManager');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -15,6 +15,15 @@ module.exports = {
     ),
 
   async execute(interaction) {
+    const queue = getQueue(interaction.guild.id);
+
+    if (!queue.current && !queue.songs.length) {
+      return interaction.reply({
+        content: 'There is no active music queue right now.',
+        ephemeral: true
+      });
+    }
+
     const percent = interaction.options.getInteger('percent', true);
     const volume = setVolume(interaction.guild.id, percent / 100);
 

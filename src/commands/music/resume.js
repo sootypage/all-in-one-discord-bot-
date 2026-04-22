@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { resumeMusic } = require('../../utils/musicManager');
+const { resumeMusic, getQueue } = require('../../utils/musicManager');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -7,12 +7,24 @@ module.exports = {
     .setDescription('Resume the paused song'),
 
   async execute(interaction) {
+    const queue = getQueue(interaction.guild.id);
+
+    if (!queue.current) {
+      return interaction.reply({
+        content: 'Nothing is loaded right now.',
+        ephemeral: true
+      });
+    }
+
     const ok = resumeMusic(interaction.guild.id);
 
     if (!ok) {
-      return interaction.reply({ content: 'Nothing is paused right now.', ephemeral: true });
+      return interaction.reply({
+        content: 'Could not resume the music.',
+        ephemeral: true
+      });
     }
 
-    await interaction.reply('▶️ Resumed the music.');
+    await interaction.reply(`▶️ Resumed **${queue.current.title}**.`);
   }
 };

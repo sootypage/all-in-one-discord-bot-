@@ -4,11 +4,11 @@ const { addSong } = require('../../utils/musicManager');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('play')
-    .setDescription('Play a song from YouTube')
+    .setDescription('Play a song or add a playlist from YouTube')
     .addStringOption(option =>
       option
         .setName('query')
-        .setDescription('Song name or YouTube URL')
+        .setDescription('Song name, YouTube URL, or playlist URL')
         .setRequired(true)
     ),
 
@@ -19,6 +19,13 @@ module.exports = {
 
     try {
       const result = await addSong(interaction, query);
+
+      if (result.isPlaylist) {
+        const prefix = result.started ? '▶️ Started playlist:' : '➕ Added playlist:';
+        return await interaction.editReply(
+          `${prefix} **${result.playlistTitle || 'Playlist'}**\nAdded **${result.addedCount}** song(s).`
+        );
+      }
 
       if (result.started) {
         await interaction.editReply(
@@ -31,7 +38,7 @@ module.exports = {
       }
     } catch (error) {
       console.error('Play command failed:', error);
-      await interaction.editReply(`❌ ${error.message || 'Failed to play that song.'}`);
+      await interaction.editReply(`❌ ${error.message || 'Failed to play that song or playlist.'}`);
     }
   }
 };
