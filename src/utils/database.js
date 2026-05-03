@@ -31,7 +31,23 @@ const DEFAULT_SETTINGS = {
   starter_balance: 0,
   xp_min: 15,
   xp_max: 25,
-  xp_cooldown_seconds: 15
+  xp_cooldown_seconds: 15,
+  welcome_enabled: 0,
+  welcome_channel_id: '',
+  welcome_message: 'Welcome {user} to {server}!',
+  leave_enabled: 0,
+  leave_channel_id: '',
+  leave_message: '{user} left {server}.',
+  auto_role_enabled: 0,
+  auto_role_id: '',
+  verification_enabled: 0,
+  verification_role_id: '',
+  verification_channel_id: '',
+  verification_message: 'Click the button below to verify and get access.',
+  log_channel_id: '',
+  member_log_enabled: 1,
+  message_log_enabled: 1,
+  command_log_enabled: 1
 };
 
 function readCa() {
@@ -128,7 +144,23 @@ async function createSchema() {
       starter_balance INTEGER NOT NULL DEFAULT 0,
       xp_min INTEGER NOT NULL DEFAULT 15,
       xp_max INTEGER NOT NULL DEFAULT 25,
-      xp_cooldown_seconds INTEGER NOT NULL DEFAULT 15
+      xp_cooldown_seconds INTEGER NOT NULL DEFAULT 15,
+      welcome_enabled INTEGER NOT NULL DEFAULT 0,
+      welcome_channel_id TEXT DEFAULT '',
+      welcome_message TEXT DEFAULT 'Welcome {user} to {server}!',
+      leave_enabled INTEGER NOT NULL DEFAULT 0,
+      leave_channel_id TEXT DEFAULT '',
+      leave_message TEXT DEFAULT '{user} left {server}.',
+      auto_role_enabled INTEGER NOT NULL DEFAULT 0,
+      auto_role_id TEXT DEFAULT '',
+      verification_enabled INTEGER NOT NULL DEFAULT 0,
+      verification_role_id TEXT DEFAULT '',
+      verification_channel_id TEXT DEFAULT '',
+      verification_message TEXT DEFAULT 'Click the button below to verify and get access.',
+      log_channel_id TEXT DEFAULT '',
+      member_log_enabled INTEGER NOT NULL DEFAULT 1,
+      message_log_enabled INTEGER NOT NULL DEFAULT 1,
+      command_log_enabled INTEGER NOT NULL DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS temp_channels (
@@ -216,6 +248,25 @@ async function createSchema() {
       updated_at BIGINT NOT NULL
     );
   `);
+
+  await query(`
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS welcome_enabled INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS welcome_channel_id TEXT DEFAULT '';
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS welcome_message TEXT DEFAULT 'Welcome {user} to {server}!';
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS leave_enabled INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS leave_channel_id TEXT DEFAULT '';
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS leave_message TEXT DEFAULT '{user} left {server}.';
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS auto_role_enabled INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS auto_role_id TEXT DEFAULT '';
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_enabled INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_role_id TEXT DEFAULT '';
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_channel_id TEXT DEFAULT '';
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS verification_message TEXT DEFAULT 'Click the button below to verify and get access.';
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS log_channel_id TEXT DEFAULT '';
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS member_log_enabled INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS message_log_enabled INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS command_log_enabled INTEGER NOT NULL DEFAULT 1;
+  `);
 }
 
 async function preloadCache() {
@@ -282,20 +333,40 @@ async function initDatabase() {
   await ensureAdminCredentials();
 }
 
+const GUILD_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS);
+
+function guildSettingValues(row) {
+  return GUILD_SETTING_KEYS.map(key => row[key]);
+}
+
+function insertGuildSettingsSql() {
+  const columns = ['guild_id', ...GUILD_SETTING_KEYS];
+  const placeholders = columns.map((_, i) => `$${i + 1}`);
+  return `
+    INSERT INTO guild_settings (${columns.join(', ')})
+    VALUES (${placeholders.join(', ')})
+    ON CONFLICT (guild_id) DO NOTHING
+  `;
+}
+
+function upsertGuildSettingsSql() {
+  const columns = ['guild_id', ...GUILD_SETTING_KEYS];
+  const placeholders = columns.map((_, i) => `$${i + 1}`);
+  const updates = GUILD_SETTING_KEYS.map(key => `${key} = EXCLUDED.${key}`);
+  return `
+    INSERT INTO guild_settings (${columns.join(', ')})
+    VALUES (${placeholders.join(', ')})
+    ON CONFLICT (guild_id) DO UPDATE SET
+      ${updates.join(',\n      ')}
+  `;
+}
+
 function getGuildSettings(guildId) {
   let row = cache.guildSettings.get(guildId);
   if (!row) {
     row = normalizeGuildSettings({ guild_id: guildId });
     cache.guildSettings.set(guildId, row);
-    background(`
-      INSERT INTO guild_settings (
-        guild_id, prefix, mod_log_channel_id, tickets_channel_id, tickets_category_id,
-        ticket_support_role_id, ticket_categories_json, temp_vc_create_channel_id, temp_vc_category_id,
-        level_up_channel_id, leveling_enabled, economy_enabled, daily_amount,
-        work_min, work_max, starter_balance, xp_min, xp_max, xp_cooldown_seconds
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
-      ON CONFLICT (guild_id) DO NOTHING
-    `, [guildId, row.prefix, row.mod_log_channel_id, row.tickets_channel_id, row.tickets_category_id, row.ticket_support_role_id, row.ticket_categories_json, row.temp_vc_create_channel_id, row.temp_vc_category_id, row.level_up_channel_id, row.leveling_enabled, row.economy_enabled, row.daily_amount, row.work_min, row.work_max, row.starter_balance, row.xp_min, row.xp_max, row.xp_cooldown_seconds]);
+    background(insertGuildSettingsSql(), [guildId, ...guildSettingValues(row)]);
   }
   return { ...row };
 }
@@ -304,33 +375,7 @@ function updateGuildSettings(guildId, patch) {
   const current = getGuildSettings(guildId);
   const next = normalizeGuildSettings({ ...current, ...patch, guild_id: guildId });
   cache.guildSettings.set(guildId, next);
-  background(`
-    INSERT INTO guild_settings (
-      guild_id, prefix, mod_log_channel_id, tickets_channel_id, tickets_category_id,
-      ticket_support_role_id, ticket_categories_json, temp_vc_create_channel_id, temp_vc_category_id,
-      level_up_channel_id, leveling_enabled, economy_enabled, daily_amount,
-      work_min, work_max, starter_balance, xp_min, xp_max, xp_cooldown_seconds
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
-    ON CONFLICT (guild_id) DO UPDATE SET
-      prefix = EXCLUDED.prefix,
-      mod_log_channel_id = EXCLUDED.mod_log_channel_id,
-      tickets_channel_id = EXCLUDED.tickets_channel_id,
-      tickets_category_id = EXCLUDED.tickets_category_id,
-      ticket_support_role_id = EXCLUDED.ticket_support_role_id,
-      ticket_categories_json = EXCLUDED.ticket_categories_json,
-      temp_vc_create_channel_id = EXCLUDED.temp_vc_create_channel_id,
-      temp_vc_category_id = EXCLUDED.temp_vc_category_id,
-      level_up_channel_id = EXCLUDED.level_up_channel_id,
-      leveling_enabled = EXCLUDED.leveling_enabled,
-      economy_enabled = EXCLUDED.economy_enabled,
-      daily_amount = EXCLUDED.daily_amount,
-      work_min = EXCLUDED.work_min,
-      work_max = EXCLUDED.work_max,
-      starter_balance = EXCLUDED.starter_balance,
-      xp_min = EXCLUDED.xp_min,
-      xp_max = EXCLUDED.xp_max,
-      xp_cooldown_seconds = EXCLUDED.xp_cooldown_seconds
-  `, [guildId, next.prefix, next.mod_log_channel_id, next.tickets_channel_id, next.tickets_category_id, next.ticket_support_role_id, next.ticket_categories_json, next.temp_vc_create_channel_id, next.temp_vc_category_id, next.level_up_channel_id, next.leveling_enabled, next.economy_enabled, next.daily_amount, next.work_min, next.work_max, next.starter_balance, next.xp_min, next.xp_max, next.xp_cooldown_seconds]);
+  background(upsertGuildSettingsSql(), [guildId, ...guildSettingValues(next)]);
   return { ...next };
 }
 
@@ -661,6 +706,7 @@ module.exports = {
   initDatabase,
   DEFAULT_SETTINGS,
   getGuildSettings,
+  getGuildConfig: getGuildSettings,
   updateGuildSettings,
   getUser,
   addBalance,

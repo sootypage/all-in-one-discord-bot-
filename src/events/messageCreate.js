@@ -1,4 +1,6 @@
 const { addXp, getGuildConfig } = require('../utils/database');
+const { handlePrefixCommand } = require('../utils/prefixCommands');
+const { logCommand } = require('../utils/guildSystems');
 const {
   getAutomodSettings,
   getSpamTracker,
@@ -26,6 +28,12 @@ module.exports = {
       } catch (error) {
         console.error('XP add failed:', error);
       }
+    }
+
+    const handledPrefix = await handlePrefixCommand(message, client, baseConfig);
+    if (handledPrefix) {
+      await logCommand(client, message, message.content.split(/\s+/)[0]);
+      return;
     }
 
     if (!member || member.permissions.has('ManageMessages')) return;

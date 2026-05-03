@@ -62,7 +62,10 @@ function enforceProductionConfig() {
       './events/messageCreate',
       './events/voiceStateUpdate',
       './events/messageReactionAdd',
-      './events/messageReactionRemove'
+      './events/messageReactionRemove',
+      './events/guildMemberAdd',
+      './events/guildMemberRemove',
+      './events/messageDelete'
     ];
 
     for (const file of eventFiles) {

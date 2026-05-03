@@ -409,7 +409,11 @@ function renderGuildPage(client, req, guildId, message = '', isError = false) {
         <h2>General</h2>
         ${field('Prefix', 'prefix', settings.prefix)}
         ${field('Mod log channel ID', 'mod_log_channel_id', settings.mod_log_channel_id)}
+        ${field('Full log channel ID', 'log_channel_id', settings.log_channel_id)}
         ${field('Level up channel ID', 'level_up_channel_id', settings.level_up_channel_id)}
+        ${toggleField('Member join/leave logs', 'member_log_enabled', !!settings.member_log_enabled)}
+        ${toggleField('Message delete logs', 'message_log_enabled', !!settings.message_log_enabled)}
+        ${toggleField('Command logs', 'command_log_enabled', !!settings.command_log_enabled)}
       </section>
 
       <section class="panel-card stack">
@@ -424,6 +428,27 @@ function renderGuildPage(client, req, guildId, message = '', isError = false) {
         <h2>Temp voice channels</h2>
         ${field('Create channel ID', 'temp_vc_create_channel_id', settings.temp_vc_create_channel_id)}
         ${field('Voice category ID', 'temp_vc_category_id', settings.temp_vc_category_id)}
+      </section>
+
+      <section class="panel-card stack">
+        <h2>Welcome / leave</h2>
+        ${toggleField('Welcome enabled', 'welcome_enabled', !!settings.welcome_enabled)}
+        ${field('Welcome channel ID', 'welcome_channel_id', settings.welcome_channel_id)}
+        <label><span>Welcome message</span><textarea name="welcome_message" rows="3">${escapeHtml(settings.welcome_message)}</textarea><small>Placeholders: {user}, {username}, {tag}, {server}, {memberCount}</small></label>
+        ${toggleField('Leave enabled', 'leave_enabled', !!settings.leave_enabled)}
+        ${field('Leave channel ID', 'leave_channel_id', settings.leave_channel_id)}
+        <label><span>Leave message</span><textarea name="leave_message" rows="3">${escapeHtml(settings.leave_message)}</textarea></label>
+      </section>
+
+      <section class="panel-card stack">
+        <h2>Verification / auto role</h2>
+        ${toggleField('Auto role enabled', 'auto_role_enabled', !!settings.auto_role_enabled)}
+        ${field('Auto role ID', 'auto_role_id', settings.auto_role_id)}
+        ${toggleField('Verification enabled', 'verification_enabled', !!settings.verification_enabled)}
+        ${field('Verification channel ID', 'verification_channel_id', settings.verification_channel_id)}
+        ${field('Verified role ID', 'verification_role_id', settings.verification_role_id)}
+        <label><span>Verification panel message</span><textarea name="verification_message" rows="3">${escapeHtml(settings.verification_message)}</textarea></label>
+        <p class="muted">Use <code>/verificationpanel</code> to send the verify button after saving these settings.</p>
       </section>
 
       <section class="panel-card stack">
@@ -813,6 +838,7 @@ function startDashboard(client) {
     updateGuildSettings(guildId, {
       prefix: String(req.body.prefix || DEFAULT_SETTINGS.prefix).slice(0, 5),
       mod_log_channel_id: String(req.body.mod_log_channel_id || '').trim(),
+      log_channel_id: String(req.body.log_channel_id || '').trim(),
       tickets_channel_id: String(req.body.tickets_channel_id || '').trim(),
       tickets_category_id: String(req.body.tickets_category_id || '').trim(),
       ticket_support_role_id: String(req.body.ticket_support_role_id || '').trim(),
@@ -820,6 +846,21 @@ function startDashboard(client) {
       temp_vc_create_channel_id: String(req.body.temp_vc_create_channel_id || '').trim(),
       temp_vc_category_id: String(req.body.temp_vc_category_id || '').trim(),
       level_up_channel_id: String(req.body.level_up_channel_id || '').trim(),
+      welcome_enabled: req.body.welcome_enabled ? 1 : 0,
+      welcome_channel_id: String(req.body.welcome_channel_id || '').trim(),
+      welcome_message: String(req.body.welcome_message || DEFAULT_SETTINGS.welcome_message).slice(0, 1900),
+      leave_enabled: req.body.leave_enabled ? 1 : 0,
+      leave_channel_id: String(req.body.leave_channel_id || '').trim(),
+      leave_message: String(req.body.leave_message || DEFAULT_SETTINGS.leave_message).slice(0, 1900),
+      auto_role_enabled: req.body.auto_role_enabled ? 1 : 0,
+      auto_role_id: String(req.body.auto_role_id || '').trim(),
+      verification_enabled: req.body.verification_enabled ? 1 : 0,
+      verification_channel_id: String(req.body.verification_channel_id || '').trim(),
+      verification_role_id: String(req.body.verification_role_id || '').trim(),
+      verification_message: String(req.body.verification_message || DEFAULT_SETTINGS.verification_message).slice(0, 1900),
+      member_log_enabled: req.body.member_log_enabled ? 1 : 0,
+      message_log_enabled: req.body.message_log_enabled ? 1 : 0,
+      command_log_enabled: req.body.command_log_enabled ? 1 : 0,
       leveling_enabled: req.body.leveling_enabled ? 1 : 0,
       economy_enabled: req.body.economy_enabled ? 1 : 0,
       daily_amount: toInt(req.body.daily_amount, current.daily_amount),

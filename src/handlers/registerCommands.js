@@ -27,8 +27,13 @@ async function registerCommands() {
   }
 
   const rest = new REST({ version: '10' }).setToken(token);
-  await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
-  console.log(`Registered ${commands.length} slash commands.`);
+  if (process.env.REGISTER_GLOBAL_COMMANDS === 'false' && guildId) {
+    await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
+    console.log(`Registered ${commands.length} guild slash commands for ${guildId}.`);
+  } else {
+    await rest.put(Routes.applicationCommands(clientId), { body: commands });
+    console.log(`Registered ${commands.length} global slash commands for all servers. Global commands can take up to 1 hour to appear.`);
+  }
 }
 
 module.exports = { registerCommands };
